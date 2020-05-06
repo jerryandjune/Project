@@ -1,0 +1,9 @@
+Flask
+Flask-Bootstrap
+Flask-wtf
+flask_apscheduler
+tensorflow
+sklearn
+keras_bert
+selectolax
+tqdm
