@@ -29,8 +29,21 @@ class NewsForm(FlaskForm):
         }
 
 # 情感分析
+
+
 class SentimentAnalysisForm(FlaskForm):
     Comment = StringField(u"评论")
 
     def __init__(self, Comment):
         self.Comment = Comment
+
+# PDF关键信息自动提取
+
+
+class PDFKeyWordAutoHighlightForm(FlaskForm):
+    File = StringField(u"文件")
+    Guid = StringField(u"Guid")
+
+    def __init__(self, Guid, File):
+        self.Guid = Guid
+        self.File = File

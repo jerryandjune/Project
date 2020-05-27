@@ -13,11 +13,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-from flask import render_template, request, jsonify
+from flask import render_template, request, jsonify, url_for, session
 from app.main import bp  # noqa
 from app.models.job import Job
 from app.models.forms import NewsForm
 from app.models.forms import SentimentAnalysisForm
+from app.models.forms import PDFKeyWordAutoHighlightForm
 from app.newsdata import NewsData
 from app.sentence2vec import sentence2vec
 import json
@@ -26,6 +27,16 @@ import pymongo
 import re
 from bson import json_util
 from app.sentiment_analysis import SentimentAnalysis
+import os
+from app.models.config import Config
+import datetime
+from flask import Flask
+import sys
+import uuid
+import subprocess
+from app.pdf2txt import parse
+from app.get_similar_keywords import Keywords, Annoysimilarwords
+import jieba
 
 # about页面
 @bp.route("/", methods=['Get', 'Post'])
@@ -181,10 +192,196 @@ def GetSentimentAnalysis():
 
     # 评论分析
     return json_util.dumps({"result":
-                    {
-                        "data": data,
-                    }
-                    })
+                            {
+                                "data": data,
+                            }
+                            })
+
+
+# PDF文件关键信息自动高亮
+@bp.route("/PDFKeyWordAutoHighlight/Index", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightIndex():
+    cleanMemory(3)
+    return render_template("PDFKeyWordAutoHighlight.html", form=None)
+
+
+@bp.route("/PDFKeyWordAutoHighlight/PdfUpload", methods=['Get', 'Post'])
+def upload_file():
+    if request.method == 'POST':
+        file = request.files['file']
+        if file and allowed_file(file.filename):
+            app = Flask(__name__)
+
+            guid = str(uuid.uuid1())
+            filename = guid + os.path.splitext(file.filename)[1]
+            base_path = os.path.abspath(
+                os.path.dirname(os.path.dirname(__file__)))
+            upload_path = os.path.join(base_path, Config.UPLOAD_FOLDER)
+            file.save(os.path.join(upload_path, filename))
+
+            session['UploadPath'] = upload_path
+
+            session['Guid'] = guid
+            # PDF文件名
+            session['File'] = filename
+            # html文件名
+            session['Html'] = guid + '.html'
+            # HighLight文件名
+            session['HighLight'] = guid + '-HighLight.html'
+            # HighLight次数
+            session['HighLightCount'] = 0
+            # pdf相对路径
+            session['FilePath'] = Config.Uploads + filename
+            # pdf绝对路径
+            session['FileRelPath'] = os.path.join(upload_path, filename)
+            # Html相对路径
+            session['HtmlPath'] = Config.Uploads + guid + '.html'
+            # Html绝对路径
+            session['HtmlRelPath'] = os.path.join(upload_path, guid + '.html')
+            # HighLight相对路径
+            session['HighLightPath'] = Config.Uploads + \
+                guid + '-HighLight.html'
+
+            # HighLight绝对路径
+            session['HighLightRelPath'] = os.path.join(
+                upload_path, guid + '-HighLight.html')
+            return render_template("PDFKeyWordAutoHighlight.html", form=None)
+    return render_template("PDFKeyWordAutoHighlight.html", form=None)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1] in Config.ALLOWED_EXTENSIONS
+
+
+@bp.route("/PDFKeyWordAutoHighlight/GetPdfFilePath", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightGetPdfFilePath():
+    filepath = session.get('FilePath')
+
+    # 评论分析
+    return json_util.dumps({"result":
+                            {
+                                "path": filepath,
+                            }
+                            })
+
+@bp.route("/PDFKeyWordAutoHighlight/GetHtmlOrgFilePath", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightGetHtmlOrgFilePath():
+    filepath = session.get('HtmlPath')
+
+    # 评论分析
+    return json_util.dumps({"result":
+                            {
+                                "path": filepath,
+                            }
+                            })
+
+@bp.route("/PDFKeyWordAutoHighlight/GetHtmlFilePath", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightGetHtmlFilePath():
+    filepath = session.get('HighLightPath')
+
+    # 评论分析
+    return json_util.dumps({"result":
+                            {
+                                "path": filepath,
+                            }
+                            })
+
+
+@bp.route("/PDFKeyWordAutoHighlight/ConvertPdf2Html", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightConvertPdf2Html():
+
+    exist = os.path.exists(session.get('HtmlRelPath'))
+
+    # html不存在，执行转html文件
+    if not exist:
+        base_path = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+        # 处理程序
+        process_file = os.path.join(base_path, Config.pdf2htmlEX)
+
+        # 输入路径
+        input_file = session.get('FileRelPath')
+
+        # 输出路径
+        #output_file = Config.HtmlPath + session.get('Html')
+        output_file = 'app' + session.get('HtmlPath')
+
+        if os.name == 'nt':
+            #output_file = Config.HtmlPath + session.get('Html')
+            subprocess.run([process_file, input_file, output_file])
+        else:
+            subprocess.run(['pdf2htmlEX', input_file, output_file])
+
+    return json_util.dumps({"result":
+                            {
+                                "data": True,
+                                "html": session.get('HtmlPath')
+                            }
+                            })
+
+
+@bp.route("/PDFKeyWordAutoHighlight/ProcessPdf", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightProcessPdf():
+    cleanMemory(3)
+
+    # 初始化高亮文件名
+    InitHighLightPath()
+
+    pdfstr = parse(session.get('FileRelPath'))
+    kw = request.values['KeyWord']
+
+    if len(kw) > 0:
+        kwlist = list(jieba.cut(kw))
+        keyword = {}
+        for i in kwlist:
+            keyword.update(Annoysimilarwords.get_similar_words(i, weight=0.2))
+    else:
+        keyword = Keywords.get_keywords(sentence=pdfstr, topn=20)
+
+    # 读取文件高亮
+    ret = HighLightFile(keyword, session.get(
+        'HtmlRelPath'), session.get('HighLightRelPath'))
+
+    return json_util.dumps({"result":
+                            {
+                                "ret": ret,
+                                "path": session.get('HighLightPath')
+                            }
+                            })
+
+
+def InitHighLightPath():
+    HighLightCount = int(session.get('HighLightCount'))
+    HighLightCount = HighLightCount + 1
+    session['HighLightCount'] = HighLightCount
+
+    # HighLight相对路径
+    session['HighLightPath'] = Config.Uploads + session.get('Guid') + \
+        '-HighLight' + str(HighLightCount) + '.html'
+
+    # HighLight绝对路径
+    session['HighLightRelPath'] = os.path.join(session.get(
+        'UploadPath'), session.get('Guid') + '-HighLight' + str(HighLightCount) + '.html')
+
+
+def HighLightFile(keyword, inputfile, outputfile):
+    file = open(inputfile, 'r', encoding='UTF-8')
+    html = file.read()
+    patstr = ' '.join(keyword.keys())
+    highlightHtml = highlight_keywords(get_query_pat(patstr), html)
+
+    with open(outputfile, "w", encoding='UTF-8') as f:
+        f.write(highlightHtml)
+
+    return True
+
+
+def get_query_pat(query):
+    return re.compile('({})'.format('|'.join(query.split())))
+
+
+def highlight_keywords(pat, document):
+    return pat.sub(repl='<span style="background:orange;">\g<1></span>', string=document)
 
 
 # 按照项目编号清理内存
@@ -193,20 +390,29 @@ def GetSentimentAnalysis():
 def cleanMemory(projectnum):
     # 文本摘要
     if projectnum == 1:
+        # project02clean()
+        # project03clean()
+        # project04clean()
         project01init()
-        project02clean()
+
     # 情感分析
     elif projectnum == 2:
-        project01clean()
+        # project01clean()
+        # project03clean()
+        # project04clean()
         project02init()
     # 关键信息自动高亮
     elif projectnum == 3:
-        project01clean()
-        project02clean()
+        # project01clean()
+        # project02clean()
+        # project03clean()
+        project03init()
     # project04
     elif projectnum == 4:
-        project01clean()
-        project02clean()
+        # project01clean()
+        # project02clean()
+        # project03clean()
+        project04init()
 
 
 def project01init():
@@ -225,3 +431,23 @@ def project02init():
 
 def project02clean():
     SentimentAnalysis.clean()
+
+
+def project03init():
+    Keywords.init()
+    Annoysimilarwords.init()
+    pass
+
+
+def project03clean():
+    Keywords.clean()
+    Annoysimilarwords.clean()
+    pass
+
+
+def project04init():
+    pass
+
+
+def project04clean():
+    pass

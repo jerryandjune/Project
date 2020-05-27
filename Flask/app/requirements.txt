@@ -7,3 +7,5 @@ sklearn
 keras_bert
 selectolax
 tqdm
+pdfminer3k
+annoy

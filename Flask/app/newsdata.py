@@ -18,7 +18,7 @@ class NewsData(object):
         if len(NewsData.news_content_list) == 0:
             app = Flask(__name__)
             path = os.path.join(app.static_folder, Config.NewsFile)
-            news_data = pd.read_csv(path)#, encoding='gb18030'
+            news_data = pd.read_csv(path)
             # 筛选新闻内容字符串长度大于500的新闻
             news_data = news_data[news_data['content'].str.len() > 500]
             # 把新闻语料转成list
