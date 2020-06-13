@@ -82,16 +82,22 @@ function ProcessPdf() {
     })
 }
 
-function DownloadPdf() {
+function Download() {
 
     $.ajax({
-        url: "/PDFKeyWordAutoHighlight/GetHtmlFilePath",
+        url: "/PDFKeyWordAutoHighlight/GetHighLightFilePath",
         type: "Post",
         dataType: 'json',
         success: function (data) {
             console.log(data)
-            if (data.result.result != '') {
+            if (data.result.path != '' && data.result.path != null) {
                 window.open(data.result.path);
+            }
+            else {
+                $.message({
+                    message: '请先上传PDF，然后进行处理！',
+                    type: 'error'
+                });
             }
         },
         error: function (e) {
@@ -111,9 +117,17 @@ function ViewPDF() {
         dataType: 'json',
         success: function (data) {
             console.log(data)
-            document.getElementById("Preview").src = data.result.path
-            //iframe强制刷新
-            $('#Preview').attr('src', $('#Preview').attr('src'))
+            if (data.result.path != '' && data.result.path != null) {
+                document.getElementById("Preview").src = data.result.path
+                //iframe强制刷新
+                $('#Preview').attr('src', $('#Preview').attr('src'))
+            }
+            else {
+                $.message({
+                    message: '请先上传PDF，然后进行处理！',
+                    type: 'error'
+                });
+            }
         },
         error: function (e) {
             $.message({
@@ -131,9 +145,17 @@ function ViewHtml() {
         dataType: 'json',
         success: function (data) {
             console.log(data)
-            document.getElementById("Preview").src = data.result.path
-            //iframe强制刷新
-            $('#Preview').attr('src', $('#Preview').attr('src'))
+            if (data.result.path != '' && data.result.path != null) {
+                document.getElementById("Preview").src = data.result.path
+                //iframe强制刷新
+                $('#Preview').attr('src', $('#Preview').attr('src'))
+            }
+            else {
+                $.message({
+                    message: '请先上传PDF，然后进行处理！',
+                    type: 'error'
+                });
+            }
         },
         error: function (e) {
             $.message({

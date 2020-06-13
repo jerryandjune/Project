@@ -9,3 +9,5 @@ selectolax
 tqdm
 pdfminer3k
 annoy
+lxml
+bert4keras

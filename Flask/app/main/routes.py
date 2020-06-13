@@ -37,6 +37,7 @@ import subprocess
 from app.pdf2txt import parse
 from app.get_similar_keywords import Keywords, Annoysimilarwords
 import jieba
+from app.robot_main_response import Response
 
 # about页面
 @bp.route("/", methods=['Get', 'Post'])
@@ -275,8 +276,8 @@ def PDFKeyWordAutoHighlightGetHtmlOrgFilePath():
                             }
                             })
 
-@bp.route("/PDFKeyWordAutoHighlight/GetHtmlFilePath", methods=['Get', 'Post'])
-def PDFKeyWordAutoHighlightGetHtmlFilePath():
+@bp.route("/PDFKeyWordAutoHighlight/GetHighLightFilePath", methods=['Get', 'Post'])
+def PDFKeyWordAutoHighlightGetHighLightFilePath():
     filepath = session.get('HighLightPath')
 
     # 评论分析
@@ -307,7 +308,7 @@ def PDFKeyWordAutoHighlightConvertPdf2Html():
         output_file = 'app' + session.get('HtmlPath')
 
         if os.name == 'nt':
-            #output_file = Config.HtmlPath + session.get('Html')
+            output_file = Config.HtmlPath + session.get('Html')
             subprocess.run([process_file, input_file, output_file])
         else:
             subprocess.run(['pdf2htmlEX', input_file, output_file])
@@ -384,34 +385,54 @@ def highlight_keywords(pat, document):
     return pat.sub(repl='<span style="background:orange;">\g<1></span>', string=document)
 
 
+#对话机器人
+@bp.route("/ChatRobot/Index", methods=['Get', 'Post'])
+def ChatRobotIndex():
+    cleanMemory(4)
+    
+    return render_template("ChatRobot.html", form=None)
+
+# 对话
+@bp.route("/ChatRobot/Chat", methods=['Get', 'Post'])
+def ChatRobotChat():
+    Content = request.values['Content']
+    res = Response.generate(Content)
+
+    # 评论分析
+    return json_util.dumps({"result":
+                            {
+                                "data": res,
+                            }
+                            })
+
 # 按照项目编号清理内存
 
 
 def cleanMemory(projectnum):
     # 文本摘要
     if projectnum == 1:
-        # project02clean()
-        # project03clean()
-        # project04clean()
+        #project02clean()
+        #project03clean()
+        #project04clean()
         project01init()
 
     # 情感分析
     elif projectnum == 2:
-        # project01clean()
-        # project03clean()
-        # project04clean()
+        #project01clean()
+        #project03clean()
+        #project04clean()
         project02init()
     # 关键信息自动高亮
     elif projectnum == 3:
-        # project01clean()
-        # project02clean()
-        # project03clean()
+        #project01clean()
+        #project02clean()
+        #project03clean()
         project03init()
     # project04
     elif projectnum == 4:
-        # project01clean()
-        # project02clean()
-        # project03clean()
+        #project01clean()
+        #project02clean()
+        #project03clean()
         project04init()
 
 
@@ -446,6 +467,7 @@ def project03clean():
 
 
 def project04init():
+    
     pass
 
 

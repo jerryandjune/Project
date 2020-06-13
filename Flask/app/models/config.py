@@ -42,11 +42,11 @@ class Config(object):
     # 是否启用mongodb
     MongoDbEnable = True
     MongoDbAuth = True
-    MongoDbUsername = parse.quote_plus('XXX')
-    MongoDbPassword = parse.quote_plus('XXX')
-    MongoDbHost = 'XXXX'
-    MongoDbPort = 'XXXX'
-    MongoDbName = 'XXXX'
+    MongoDbUsername = parse.quote_plus('xxx')
+    MongoDbPassword = parse.quote_plus('xxx')
+    MongoDbHost = 'xxx'
+    MongoDbPort = 'xxx'
+    MongoDbName = 'xxx'
 
     # 新闻摘要长度
     SummaryLength = 5

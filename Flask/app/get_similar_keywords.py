@@ -129,7 +129,7 @@ class Annoysimilarwords():
         pass
 
     @staticmethod
-    def get_similar_words(text, topn=50, weight=0.5):
+    def get_similar_words(text, topn=20, weight=0.5):
         ''' 基于annoy算法提取相似词'''
         sim_words = Annoysimilarwords.model.get_nns_by_item(
             Annoysimilarwords.word_index[text], topn, include_distances=True)
